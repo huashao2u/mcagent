@@ -1,0 +1,29 @@
+{
+  "actions": {
+    "action_accuracy": 1.0,
+    "unnecessary_search_rate": null,
+    "justified_refuse_rate": 1.0,
+    "over_refusal_rate": 0.0,
+    "clarify_helpfulness": 1.0,
+    "over_answer_rate": 0.0,
+    "non_answer_rate": 0.6,
+    "action_counts": {
+      "ANSWER": 2,
+      "CLARIFY": 2,
+      "REFUSE": 1
+    }
+  },
+  "answers": {
+    "math_accuracy": 1.0,
+    "factual_correctness": null,
+    "num_math_samples": 2,
+    "num_factual_samples": 0
+  },
+  "calibration": {
+    "auroc": null,
+    "ece": null,
+    "brier": null,
+    "note": "Phase-one placeholder. Confidence-aware calibration metrics can be added once confidence scores are logged.",
+    "num_samples": 5
+  }
+}

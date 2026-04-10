@@ -1,0 +1,84 @@
+{
+  "notes": [
+    "Current oracle-labeled positive actions only cover ANSWER, SEARCH, and CLARIFY.",
+    "CALCULATE and REFUSE do not appear as oracle_action in the current train/eval pair files.",
+    "The untrained base model predicts ANSWER for every labeled prompt in both train and eval splits."
+  ],
+  "labeled_data": {
+    "train_pairs": {
+      "num_pairs": 256,
+      "oracle_action_distribution": {
+        "ANSWER": {
+          "count": 162,
+          "ratio": 0.6328
+        },
+        "CLARIFY": {
+          "count": 43,
+          "ratio": 0.168
+        },
+        "SEARCH": {
+          "count": 51,
+          "ratio": 0.1992
+        }
+      },
+      "rejected_action_distribution": {
+        "ANSWER": {
+          "count": 94,
+          "ratio": 0.3672
+        },
+        "REFUSE": {
+          "count": 162,
+          "ratio": 0.6328
+        }
+      }
+    },
+    "eval_pairs": {
+      "num_pairs": 64,
+      "oracle_action_distribution": {
+        "ANSWER": {
+          "count": 39,
+          "ratio": 0.6094
+        },
+        "CLARIFY": {
+          "count": 13,
+          "ratio": 0.2031
+        },
+        "SEARCH": {
+          "count": 12,
+          "ratio": 0.1875
+        }
+      },
+      "rejected_action_distribution": {
+        "ANSWER": {
+          "count": 25,
+          "ratio": 0.3906
+        },
+        "REFUSE": {
+          "count": 39,
+          "ratio": 0.6094
+        }
+      }
+    }
+  },
+  "base_model_before_training": {
+    "model": "Qwen2.5-7B-Instruct",
+    "train_pairs": {
+      "predicted_action_distribution": {
+        "ANSWER": {
+          "count": 256,
+          "ratio": 1.0
+        }
+      },
+      "oracle_action_accuracy": 0.6328
+    },
+    "eval_pairs": {
+      "predicted_action_distribution": {
+        "ANSWER": {
+          "count": 64,
+          "ratio": 1.0
+        }
+      },
+      "oracle_action_accuracy": 0.6094
+    }
+  }
+}

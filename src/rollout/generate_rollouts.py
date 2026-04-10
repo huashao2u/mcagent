@@ -1,0 +1,166 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+from src.data.loaders import DatasetArtifactMissingError, UnifiedSample, load_dataset
+from src.envs.sandbox import SandboxEnv
+from src.eval.evaluate_answers import is_answer_correct
+from src.features.extract_process_features import extract_process_features
+from src.features.semantic_tags import active_semantic_tags, build_semantic_tags
+from src.prompting.build_prompts import build_prompt_text
+from src.rollout.policy import HFLocalPolicy, build_policy
+from src.scoring.action_oracle import choose_oracle_action
+from src.scoring.local_utility import estimate_candidate_utilities, load_utility_config, score_action
+from src.utils.config import load_config
+from src.utils.io import write_jsonl
+
+
+def _resolve_datasets(config: dict[str, Any], requested: str | None) -> list[str]:
+    if requested:
+        return [name.strip().lower() for name in requested.split(",") if name.strip()]
+    return [name.lower() for name in config["data"]["phase_a_datasets"]]
+
+
+def _load_samples(config: dict[str, Any], datasets: list[str], limit_per_dataset: int | None) -> tuple[list[UnifiedSample], list[dict[str, str]]]:
+    split_map = config["data"]["default_split"]
+    samples: list[UnifiedSample] = []
+    skipped: list[dict[str, str]] = []
+    for dataset_name in datasets:
+        split = split_map[dataset_name]
+        try:
+            loaded = load_dataset(dataset_name, split=split, limit=limit_per_dataset)
+            samples.extend(loaded)
+        except (DatasetArtifactMissingError, FileNotFoundError, RuntimeError) as exc:
+            if config["data"].get("skip_unavailable", True):
+                skipped.append({"dataset": dataset_name, "reason": str(exc)})
+                continue
+            raise
+    return samples, skipped
+
+
+def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float], token_threshold: int) -> dict[str, Any]:
+    prompt_text = build_prompt_text(sample, enable_tool_schema=True)
+    policy_output = policy.generate_decision(sample, prompt_text)
+    decision = policy_output.decision
+    env = SandboxEnv(sample)
+    tool_observation = None
+    final_answer = None
+    final_status = "pending"
+    if decision["action"] == "ANSWER":
+        _, _, _ = env.step("ANSWER", decision["action_input"])
+        final_answer = decision["action_input"].get("answer")
+        final_status = "answered"
+    else:
+        tool_observation, done, info = env.step(decision["action"], decision["action_input"])
+        if done:
+            final_answer = tool_observation.get("reason")
+            final_status = tool_observation.get("status", "completed")
+        else:
+            followup = policy.finalize_after_tool(sample, decision, tool_observation)
+            final_answer = followup["final_answer"]
+            final_status = followup["final_status"]
+    semantic_tags = build_semantic_tags(sample)
+    correctness = is_answer_correct(sample.to_dict(), final_answer)
+    oracle_action = choose_oracle_action(sample, semantic_tags=semantic_tags)
+    candidate_utilities = estimate_candidate_utilities(sample, semantic_tags, utility_config, answer_correctness=correctness)
+    actual_utility = score_action(decision["action"], sample, semantic_tags, utility_config, correctness=correctness)
+    process_features = extract_process_features(
+        reason=policy_output.reason,
+        raw_text=policy_output.raw_text,
+        tool_observation=tool_observation,
+        token_threshold=token_threshold,
+    )
+    return {
+        "id": sample.id,
+        "dataset": sample.dataset,
+        "task_type": sample.task_type,
+        "question": sample.question,
+        "gold_answer": sample.gold_answer,
+        "metadata": sample.metadata,
+        "prompt": prompt_text,
+        "reason": policy_output.reason,
+        "decision": decision,
+        "tool_observation": tool_observation,
+        "final_answer": final_answer,
+        "final_status": final_status,
+        "correctness": correctness,
+        "oracle_action": oracle_action,
+        "semantic_tags": active_semantic_tags(sample),
+        "process_features": process_features,
+        "candidate_utilities": candidate_utilities,
+        "actual_utility": actual_utility,
+        "raw_text": policy_output.raw_text,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate MCAgent rollout logs.")
+    parser.add_argument("--config", default="configs/default.yaml")
+    parser.add_argument("--datasets", default=None, help="Comma-separated dataset names.")
+    parser.add_argument("--limit-per-dataset", type=int, default=None)
+    parser.add_argument("--backend", default=None, choices=("heuristic", "hf"))
+    parser.add_argument("--output", default=None)
+    parser.add_argument("--verify-hf-assets", action="store_true")
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    backend = args.backend or config["rollout"]["backend"]
+    model_path = str(Path(config["paths"]["model_root"]).resolve())
+    if args.verify_hf_assets:
+        print(json.dumps(HFLocalPolicy.verify_assets(model_path), ensure_ascii=False, indent=2))
+        return
+
+    datasets = _resolve_datasets(config, args.datasets)
+    limit_per_dataset = args.limit_per_dataset or config["data"]["limit_per_dataset"]
+    output_path = Path(args.output or config["paths"]["rollout_output"])
+    utility_config = load_utility_config(config)
+    samples, skipped = _load_samples(config, datasets, limit_per_dataset)
+    policy = build_policy(
+        backend=backend,
+        model_path=model_path,
+        exploration_rate=float(config["rollout"]["exploration_rate"]),
+        max_new_tokens=int(config["rollout"]["max_new_tokens"]),
+    )
+
+    rollouts = [
+        run_rollout(
+            sample,
+            policy=policy,
+            utility_config=utility_config,
+            token_threshold=int(config["features"]["long_reason_token_threshold"]),
+        )
+        for sample in samples
+    ]
+    if skipped:
+        rollouts.append(
+            {
+                "id": "resource-report",
+                "dataset": "system",
+                "task_type": "meta",
+                "question": "resource availability report",
+                "gold_answer": None,
+                "metadata": {"skipped_datasets": skipped},
+                "prompt": "",
+                "reason": "Datasets with missing real artifacts were skipped.",
+                "decision": {"action": "REFUSE", "action_input": {}, "brief_rationale": "Meta report"},
+                "tool_observation": None,
+                "final_answer": None,
+                "final_status": "resource_report",
+                "correctness": None,
+                "oracle_action": "REFUSE",
+                "semantic_tags": [],
+                "process_features": {},
+                "candidate_utilities": {},
+                "actual_utility": 0.0,
+                "raw_text": "",
+            }
+        )
+    write_jsonl(output_path, rollouts)
+    print(json.dumps({"output": str(output_path), "num_rollouts": len(rollouts), "skipped": skipped}, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

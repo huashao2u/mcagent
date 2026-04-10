@@ -1,0 +1,10 @@
+training:
+  trainer: trl_dpo
+  smoke: true
+  max_steps: 1
+  beta: 0.1
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 1.0e-4
+  max_length: 512
+  max_prompt_length: 384

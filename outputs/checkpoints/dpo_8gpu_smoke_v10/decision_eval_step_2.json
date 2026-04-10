@@ -1,0 +1,56 @@
+{
+  "decision_action_accuracy": 0.625,
+  "num_samples": 32,
+  "per_dataset": {
+    "competition_math": {
+      "decision_action_accuracy": 1.0,
+      "num_samples": 5
+    },
+    "freshqa": {
+      "decision_action_accuracy": 0.0,
+      "num_samples": 7
+    },
+    "gsm8k": {
+      "decision_action_accuracy": 1.0,
+      "num_samples": 9
+    },
+    "in3": {
+      "decision_action_accuracy": 0.0,
+      "num_samples": 5
+    },
+    "mintqa": {
+      "decision_action_accuracy": 1.0,
+      "num_samples": 6
+    }
+  },
+  "records": [
+    {
+      "sample_id": "freshqa-7",
+      "dataset": "freshqa",
+      "oracle_action": "SEARCH",
+      "predicted_action": "ANSWER",
+      "correct": false
+    },
+    {
+      "sample_id": "gsm8k-train-1",
+      "dataset": "gsm8k",
+      "oracle_action": "ANSWER",
+      "predicted_action": "ANSWER",
+      "correct": true
+    },
+    {
+      "sample_id": "mintqa-train-6",
+      "dataset": "mintqa",
+      "oracle_action": "ANSWER",
+      "predicted_action": "ANSWER",
+      "correct": true
+    },
+    {
+      "sample_id": "gsm8k-train-13",
+      "dataset": "gsm8k",
+      "oracle_action": "ANSWER",
+      "predicted_action": "ANSWER",
+      "correct": true
+    }
+  ]
+}

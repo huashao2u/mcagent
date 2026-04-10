@@ -1,0 +1,13 @@
+{
+  "action_accuracy": 0.5,
+  "unnecessary_search_rate": 0.0,
+  "justified_refuse_rate": null,
+  "over_refusal_rate": null,
+  "clarify_helpfulness": null,
+  "over_answer_rate": 1.0,
+  "non_answer_rate": 0.5,
+  "action_counts": {
+    "ANSWER": 1,
+    "SEARCH": 1
+  }
+}

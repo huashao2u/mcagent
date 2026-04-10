@@ -1,0 +1,154 @@
+project:
+  name: mcagent
+  root: .
+
+paths:
+  dataset_root: ./dataset
+  model_root: ./models/qwen/Qwen2.5-7B-Instruct
+  rollout_output: ./outputs/rollouts/phase_a_rollouts.jsonl
+  decision_eval_output: ./outputs/reports/decision_eval.json
+  train_dataset_cache: ./outputs/pairs/train_mixture_pairs.jsonl
+  eval_dataset_cache: ./outputs/pairs/eval_mixture_pairs.jsonl
+  pair_output: ./outputs/pairs/phase_a_pairs.jsonl
+  diagnostics_output: ./outputs/pairs/phase_a_diagnostics.jsonl
+  action_eval_output: ./outputs/reports/action_metrics.json
+  answer_eval_output: ./outputs/reports/answer_metrics.json
+  calibration_eval_output: ./outputs/reports/calibration_metrics.json
+  aggregate_output: ./outputs/reports/aggregate_metrics.json
+  resource_report_output: ./outputs/reports/resource_report.json
+  dpo_output_dir: ./outputs/checkpoints/dpo_smoke
+
+data:
+  phase_a_datasets:
+    - gsm8k
+    - in3
+    - mintqa
+    - competition_math
+    - freshqa
+  phase_b_datasets:
+    - freshqa
+  default_split:
+    gsm8k: train
+    competition_math: train
+    freshqa: test
+    in3: train
+    mintqa: train
+  limit_per_dataset: 3
+  skip_unavailable: true
+  train_mix:
+    total_limit: 5000
+    seed: 7
+    per_dataset:
+      mintqa: 2000
+      gsm8k: 1500
+      competition_math: 900
+      in3: 400
+      freshqa: 200
+  eval_mix:
+    total_limit: 500
+    seed: 17
+    per_dataset:
+      mintqa: 150
+      gsm8k: 150
+      competition_math: 100
+      in3: 50
+      freshqa: 50
+
+prompting:
+  enable_tool_schema: true
+  max_observations: 1
+
+rollout:
+  backend: heuristic
+  exploration_rate: 0.2
+  max_new_tokens: 256
+  seed: 7
+
+tools:
+  search_top_k: 3
+  clarify_reply_mode: first_option
+
+features:
+  long_reason_token_threshold: 80
+
+scoring:
+  lambda_tool: 0.1
+  lambda_clar: 0.1
+  answer_correct: 1.0
+  answer_wrong: -1.0
+  refuse_justified: 0.4
+  refuse_unjustified: -0.6
+  search_helpful: 0.6
+  search_unhelpful: -0.1
+  clarify_helpful: 0.5
+  clarify_unhelpful: -0.1
+
+pairs:
+  min_utility_gap: 0.5
+
+training:
+  smoke: false
+  max_steps: 200
+  eval_steps: 25
+  save_steps: 50
+  logging_steps: 5
+  warmup_steps: 10
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 5.0e-5
+  beta: 0.1
+  max_length: 512
+  max_prompt_length: 384
+  max_target_length: 128
+  bf16: false
+  fp16: true
+  gradient_checkpointing: true
+  max_eval_samples: 200
+  ddp_find_unused_parameters: false
+  dataloader_num_workers: 2
+  use_liger_kernel: false
+  precompute_ref_log_probs: true
+  fsdp: full_shard auto_wrap
+  fsdp_transformer_layer_cls_to_wrap: Qwen2DecoderLayer
+  fsdp_config:
+    backward_prefetch: backward_pre
+    forward_prefetch: false
+    use_orig_params: true
+    limit_all_gathers: true
+  report_to:
+    - wandb
+  wandb:
+    enabled: true
+    project: mcagent
+    entity: null
+    run_name: qwen25-7b-dpo-action-calibration
+    tags:
+      - dpo
+      - lora
+      - action-calibration
+    log_model: false
+    mode: online
+  curriculum:
+    train_builder: oracle_pairs
+    eval_builder: oracle_pairs
+  distributed:
+    use_torchrun: true
+    nproc_per_node: 8
+    master_port: 29600
+  lora:
+    enabled: true
+    r: 8
+    alpha: 16
+    dropout: 0.05
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - up_proj
+      - down_proj
+      - gate_proj
+
+eval:
+  non_answer_coverage_warn_threshold: 0.15

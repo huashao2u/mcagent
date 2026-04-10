@@ -1,0 +1,16 @@
+datasets:
+  gsm8k:
+    enabled: true
+    split: train
+  competition_math:
+    enabled: true
+    split: train
+  freshqa:
+    enabled: true
+    split: test
+  in3:
+    enabled: true
+    split: train
+  mintqa:
+    enabled: true
+    split: train

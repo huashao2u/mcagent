@@ -1,0 +1,35 @@
+{
+  "dataset_root": "/media/songyl/mcagent/dataset",
+  "model_root": "/media/songyl/SALRA/models",
+  "datasets": {
+    "gsm8k": {
+      "available": true,
+      "sample_count_checked": 1
+    },
+    "competition_math": {
+      "available": true,
+      "sample_count_checked": 1
+    },
+    "freshqa": {
+      "available": true,
+      "sample_count_checked": 1
+    },
+    "in3": {
+      "available": true,
+      "sample_count_checked": 1
+    },
+    "mintqa": {
+      "available": true,
+      "sample_count_checked": 1
+    }
+  },
+  "models": {
+    "qwen2_5_7b_instruct_exists": true,
+    "qwen2_5_7b_hf_layout": true,
+    "available_qwen_variants": [
+      "DeepSeek-R1-Distill-Qwen-14B",
+      "Qwen2.5-3B-Instruct",
+      "Qwen2.5-7B-Instruct"
+    ]
+  }
+}

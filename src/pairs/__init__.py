@@ -1,0 +1,1 @@
+"""Preference pair builders."""
