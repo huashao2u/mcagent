@@ -122,6 +122,15 @@ def build_prompt_text(
     )
 
 
+def build_state_prompt(prompt_text: str, reason_prefix: str) -> str:
+    return (
+        prompt_text
+        + "\nResponse JSON prefix:\n"
+        + json.dumps({"reason": reason_prefix}, ensure_ascii=False)[:-1]
+        + ', "decision": {"action": "'
+    )
+
+
 def _keyword_fallback_action(raw_text: str) -> str:
     upper = raw_text.upper()
     for action in ALLOWED_ACTIONS:

@@ -96,6 +96,8 @@ def _build_pair_dataset(config: dict[str, Any], split_name: str, output_path: Pa
         samples = samples[:total_limit]
     print(f"[mcagent] {split_name} samples loaded: {len(samples)}")
     if builder_name == "natural_branch_pairs":
+        # The default curriculum derives preferences from actual rollout branches instead of
+        # static oracle labels, which keeps the DPO prompt closer to inference-time states.
         print(f"[mcagent] building {split_name} natural-branch pairs...")
         pairs, diagnostics, rollouts = build_natural_branch_pairs_from_samples(
             samples,
@@ -150,6 +152,8 @@ def run_formal_dpo(config: dict[str, Any], output_dir: Path, force_smoke: bool =
     output_dir.mkdir(parents=True, exist_ok=True)
     runtime_config = json.loads(json.dumps(config))
     if force_smoke:
+        # Smoke mode shrinks both the mixed dataset and evaluation budget so the full distributed
+        # training stack can be validated quickly without changing the main config on disk.
         runtime_config["data"]["train_mix"]["total_limit"] = min(int(runtime_config["data"]["train_mix"]["total_limit"]), 256)
         runtime_config["data"]["eval_mix"]["total_limit"] = min(int(runtime_config["data"]["eval_mix"]["total_limit"]), 64)
         runtime_config["data"]["train_mix"]["per_dataset"] = {
@@ -171,6 +175,8 @@ def run_formal_dpo(config: dict[str, Any], output_dir: Path, force_smoke: bool =
     train_pairs_path = output_dir / "train_pairs.jsonl"
     eval_pairs_path = output_dir / "eval_pairs.jsonl"
     if local_rank == 0:
+        # Rank 0 materializes the pair cache once; other workers block until the files exist so
+        # all processes train on the exact same preference data.
         train_pairs = _build_pair_dataset(runtime_config, "train", train_pairs_path)
         eval_pairs = _build_pair_dataset(runtime_config, "eval", eval_pairs_path)
     else:
@@ -272,6 +278,8 @@ def run_formal_dpo(config: dict[str, Any], output_dir: Path, force_smoke: bool =
         summary["decision_metrics"] = decision_metrics
         summary["curve_path"] = str(curve_path)
         if fsdp_enabled:
+            # Full final-model export is skipped under FSDP because checkpoint shards/adapters are
+            # the stable artifact in this training mode.
             summary["final_model_dir"] = None
             summary["final_model_note"] = "Skipped final_model export under FSDP; use checkpoint artifacts for adapter weights."
         else:

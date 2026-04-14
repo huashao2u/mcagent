@@ -59,11 +59,9 @@ class HeuristicPolicy:
                 action = "ANSWER"
             elif oracle_action in {"SEARCH", "REFUSE", "CLARIFY"}:
                 action = "ANSWER"
-        action_probabilities = self._build_action_probabilities(action, oracle_action, explored)
-        action_scores = {name: round(math.log(max(prob, 1e-8)), 6) for name, prob in action_probabilities.items()}
         decision = {
             "action": action,
-            "confidence": round(action_probabilities.get(action, 0.5), 4),
+            "confidence": None,
             "action_input": self._build_action_input(action, sample),
             "brief_rationale": self._build_rationale(action, sample, tags),
         }
@@ -72,9 +70,9 @@ class HeuristicPolicy:
             raw_text=json.dumps(payload, ensure_ascii=False, indent=2),
             reason=payload["reason"],
             decision=decision,
-            action_scores=action_scores,
-            action_probabilities=action_probabilities,
-            confidence_source="heuristic_explicit_confidence",
+            action_scores=None,
+            action_probabilities=None,
+            confidence_source="heuristic_no_confidence",
         )
 
     def finalize_after_tool(self, sample, decision: dict[str, Any], observation: dict[str, Any]) -> dict[str, str]:
@@ -135,19 +133,6 @@ class HeuristicPolicy:
         if action == "CLARIFY":
             return {"question": sample.metadata.get("gold_clarify_question") or "Could you clarify your preference?"}
         return {"reason": "The premise appears false or cannot be verified."}
-
-    def _build_action_probabilities(self, chosen_action: str, oracle_action: str, explored: bool) -> dict[str, float]:
-        chosen_prob = 0.88 if not explored and chosen_action == oracle_action else 0.62
-        runner_up = 0.07 if not explored else 0.18
-        remaining = max(1.0 - chosen_prob - runner_up, 0.0)
-        alternatives = [action for action in ACTION_SPACE if action != chosen_action]
-        probs = {action: remaining / max(len(alternatives) - 1, 1) for action in alternatives}
-        if alternatives:
-            probs[alternatives[0]] = runner_up
-        probs[chosen_action] = chosen_prob
-        total = sum(probs.values()) or 1.0
-        return {action: round(value / total, 6) for action, value in probs.items()}
-
 
 class HFLocalPolicy:
     def __init__(self, model_path: str, max_new_tokens: int = 256):

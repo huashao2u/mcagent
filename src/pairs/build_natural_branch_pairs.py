@@ -29,6 +29,8 @@ def build_natural_branch_pairs(rollouts: list[dict[str, Any]], min_gap: float) -
         state_prompt = record.get("state_prompt")
         if not state_prompt or record.get("dataset") == "system":
             continue
+        # Multiple rollout records can correspond to the same pre-action state; we group by the
+        # shared prompt prefix so DPO compares actions rather than unrelated questions.
         grouped.setdefault(state_prompt, []).append(record)
 
     pairs: list[dict[str, Any]] = []
@@ -43,8 +45,11 @@ def build_natural_branch_pairs(rollouts: list[dict[str, Any]], min_gap: float) -
             utility = (record.get("candidate_utilities") or {}).get(action, record.get("actual_utility"))
             if utility is None:
                 continue
+            # Keep the best observed utility for each action branch before ranking branches.
             branch_utilities[action] = max(float(utility), branch_utilities.get(action, float("-inf")))
         if len(branch_utilities) < 2:
+            # If exploration did not materialize enough distinct branches, fall back to the
+            # per-action utility estimates stored on the seed rollout.
             for action, utility in (seed.get("candidate_utilities") or {}).items():
                 branch_utilities.setdefault(action, float(utility))
         ranked = sorted(branch_utilities.items(), key=lambda item: item[1], reverse=True)
@@ -87,6 +92,8 @@ def build_natural_branch_pairs_from_samples(samples, config: dict[str, Any], min
         exploration_rate=float(config["rollout"]["exploration_rate"]),
         max_new_tokens=int(config["rollout"]["max_new_tokens"]),
     )
+    # Re-run the rollout stage here so pair construction reflects the same policy/config used
+    # during training curriculum generation.
     rollouts = [
         run_rollout(
             sample,

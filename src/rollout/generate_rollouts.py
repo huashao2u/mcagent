@@ -65,6 +65,8 @@ def run_rollout(
     decision = dict(policy_output.decision)
     reason_prefix = policy_output.reason.strip()
     history_prefix: list[dict[str, Any]] = []
+    # `state_prompt` freezes the shared prefix up to the action token so later pair builders
+    # can compare alternative actions under the exact same state.
     state_prompt = _build_state_prompt(prompt_text, reason_prefix)
     state_snapshot = {
         "dataset": sample.dataset,
@@ -81,6 +83,8 @@ def run_rollout(
         final_answer = decision["action_input"].get("answer")
         final_status = "answered"
     else:
+        # Tools either terminate immediately (e.g. REFUSE/CLARIFY in heuristic mode) or yield
+        # an observation that the policy converts into a final answer.
         tool_observation, done, info = env.step(decision["action"], decision["action_input"])
         if done:
             final_answer = tool_observation.get("reason")
@@ -99,6 +103,8 @@ def run_rollout(
     except (TypeError, ValueError):
         action_confidence = None
     confidence_source = policy_output.confidence_source or "unknown"
+    # Heuristic policies and malformed model outputs may omit confidence, so we backfill from
+    # action probabilities first and only then fall back to a neutral default.
     if action_confidence is None and policy_output.action_probabilities:
         action_confidence = float(policy_output.action_probabilities.get(decision["action"], 0.5))
         confidence_source = "action_probability_fallback"
