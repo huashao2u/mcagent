@@ -41,7 +41,12 @@ def build_system_prompt(enable_tool_schema: bool = True) -> str:
     )
 
 
-def build_user_prompt(sample: UnifiedSample, observations: list[dict[str, Any]] | None = None) -> str:
+def build_user_prompt(
+    sample: UnifiedSample,
+    observations: list[dict[str, Any]] | None = None,
+    state_tags: list[str] | None = None,
+    reason_prefix: str | None = None,
+) -> str:
     def _json_default(obj: Any):
         # Make pandas/numpy-derived metadata JSON-safe without leaking huge blobs into prompts.
         if hasattr(obj, "tolist"):
@@ -81,6 +86,8 @@ def build_user_prompt(sample: UnifiedSample, observations: list[dict[str, Any]] 
         return value
 
     compact_metadata = _compact(sample.metadata or {})
+    state_tag_block = "" if not state_tags else "\nState tags: " + json.dumps(state_tags, ensure_ascii=False)
+    reason_prefix_block = "" if not reason_prefix else "\nReason prefix: " + reason_prefix.strip()
     observation_block = ""
     if observations:
         observation_lines = ["Tool observations:"]
@@ -92,13 +99,26 @@ def build_user_prompt(sample: UnifiedSample, observations: list[dict[str, Any]] 
         f"Task type: {sample.task_type}\n"
         f"Question: {sample.question}\n"
         f"Metadata: {json.dumps(compact_metadata, ensure_ascii=False, default=_json_default)}"
+        f"{state_tag_block}"
+        f"{reason_prefix_block}"
         f"{observation_block}\n"
         "Choose the best next action and return JSON only."
     )
 
 
-def build_prompt_text(sample: UnifiedSample, enable_tool_schema: bool = True, observations: list[dict[str, Any]] | None = None) -> str:
-    return build_system_prompt(enable_tool_schema=enable_tool_schema) + "\n\n" + build_user_prompt(sample, observations)
+def build_prompt_text(
+    sample: UnifiedSample,
+    enable_tool_schema: bool = True,
+    observations: list[dict[str, Any]] | None = None,
+    state_tags: list[str] | None = None,
+    reason_prefix: str | None = None,
+) -> str:
+    return build_system_prompt(enable_tool_schema=enable_tool_schema) + "\n\n" + build_user_prompt(
+        sample,
+        observations=observations,
+        state_tags=state_tags,
+        reason_prefix=reason_prefix,
+    )
 
 
 def _keyword_fallback_action(raw_text: str) -> str:
@@ -143,11 +163,24 @@ def parse_decision_output(raw_text: str) -> dict[str, Any]:
     action = str(decision.get("action", "ANSWER")).upper()
     if action not in ALLOWED_ACTIONS:
         action = _keyword_fallback_action(raw_text)
+    action_input = decision.get("action_input", {}) or {}
+    if not isinstance(action_input, dict):
+        action_input = {}
+    if action == "ANSWER" and "answer" not in action_input:
+        action_input = {"answer": ""}
+    if action == "SEARCH" and "query" not in action_input:
+        action_input = {"query": ""}
+    if action == "CALCULATE" and "expression" not in action_input:
+        action_input = {"expression": ""}
+    if action == "CLARIFY" and "question" not in action_input:
+        action_input = {"question": ""}
+    if action == "REFUSE" and "reason" not in action_input:
+        action_input = {"reason": ""}
     return {
         "reason": str(parsed.get("reason", "")).strip(),
         "decision": {
             "action": action,
-            "action_input": decision.get("action_input", {}) or {},
+            "action_input": action_input,
             "brief_rationale": str(decision.get("brief_rationale", "")).strip(),
         },
     }

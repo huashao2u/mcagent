@@ -1,0 +1,29 @@
+{
+  "action_accuracy": 0.8,
+  "unnecessary_search_rate": null,
+  "calculate_helpfulness": 1.0,
+  "unnecessary_calculate_rate": 0.0,
+  "justified_refuse_rate": 1.0,
+  "over_refusal_rate": 0.0,
+  "clarify_helpfulness": 1.0,
+  "over_answer_rate": 0.5,
+  "non_answer_rate": 0.6,
+  "action_counts": {
+    "CALCULATE": 3,
+    "CLARIFY": 2,
+    "ANSWER": 4,
+    "REFUSE": 1
+  },
+  "oracle_action_counts": {
+    "CALCULATE": 4,
+    "CLARIFY": 2,
+    "REFUSE": 2,
+    "ANSWER": 2
+  },
+  "per_action_accuracy": {
+    "ANSWER": 0.5,
+    "CALCULATE": 1.0,
+    "CLARIFY": 1.0,
+    "REFUSE": 1.0
+  }
+}

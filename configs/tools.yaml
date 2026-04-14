@@ -1,0 +1,12 @@
+tools:
+  search:
+    backend: mock_retriever
+    top_k: 3
+    enable_online_backend: false
+    cache_path: ./outputs/reports/search_cache.json
+  calculator:
+    mode: safe_python
+  clarify:
+    mode: oracle_once
+  refuse:
+    mode: terminal

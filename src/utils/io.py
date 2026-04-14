@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
 def ensure_parent(path: str | Path) -> Path:
@@ -21,14 +21,36 @@ def read_jsonl(path: str | Path) -> list[dict]:
     return records
 
 
+def _to_jsonable(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _to_jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_to_jsonable(item) for item in value]
+    if hasattr(value, "tolist"):
+        try:
+            return _to_jsonable(value.tolist())
+        except Exception:
+            pass
+    if hasattr(value, "item"):
+        try:
+            return _to_jsonable(value.item())
+        except Exception:
+            pass
+    return str(value)
+
+
 def write_jsonl(path: str | Path, records: Iterable[dict]) -> None:
     output_path = ensure_parent(path)
     with output_path.open("w", encoding="utf-8") as handle:
         for record in records:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.write(json.dumps(_to_jsonable(record), ensure_ascii=False) + "\n")
 
 
 def write_json(path: str | Path, payload: dict) -> None:
     output_path = ensure_parent(path)
     with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        json.dump(_to_jsonable(payload), handle, ensure_ascii=False, indent=2)

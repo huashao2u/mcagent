@@ -9,10 +9,10 @@ from src.tools.search_tool import SearchTool
 
 
 class SandboxEnv:
-    def __init__(self, sample):
+    def __init__(self, sample, config: dict[str, Any] | None = None):
         self.sample = sample
         self.tools = {
-            "SEARCH": SearchTool(),
+            "SEARCH": SearchTool(config=config),
             "CALCULATE": CalculatorTool(),
             "CLARIFY": ClarifyTool(),
             "REFUSE": RefuseTool(),

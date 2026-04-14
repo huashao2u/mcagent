@@ -46,7 +46,9 @@ class HeuristicPolicy:
         action = oracle_action
         if _deterministic_ratio(sample.id) < self.exploration_rate:
             if oracle_action == "ANSWER":
-                action = "SEARCH" if sample.task_type == "factual_boundary" else "ANSWER"
+                action = "SEARCH" if sample.task_type == "factual_boundary" else "CALCULATE"
+            elif oracle_action == "CALCULATE":
+                action = "ANSWER"
             elif oracle_action in {"SEARCH", "REFUSE", "CLARIFY"}:
                 action = "ANSWER"
         decision = {

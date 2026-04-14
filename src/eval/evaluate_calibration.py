@@ -3,16 +3,42 @@ from __future__ import annotations
 import argparse
 import json
 
+from src.eval.calibration_utils import binary_auroc, brier_score, expected_calibration_error, extract_binary_action_targets, summarize_risk_coverage
 from src.utils.io import read_jsonl, write_json
 
 
 def evaluate_calibration(rollouts: list[dict]) -> dict:
+    labels, scores = extract_binary_action_targets(rollouts)
+    per_dataset: dict[str, dict] = {}
+    per_action: dict[str, dict] = {}
+    for key in sorted({record.get("dataset") for record in rollouts if record.get("dataset")}):
+        subset = [record for record in rollouts if record.get("dataset") == key]
+        ds_labels, ds_scores = extract_binary_action_targets(subset)
+        per_dataset[key] = {
+            "auroc": binary_auroc(ds_labels, ds_scores),
+            "ece": expected_calibration_error(ds_labels, ds_scores),
+            "brier": brier_score(ds_labels, ds_scores),
+            **summarize_risk_coverage(ds_labels, ds_scores),
+            "num_samples": len(ds_labels),
+        }
+    for key in sorted({(record.get("decision") or {}).get("action") for record in rollouts if record.get("decision")}):
+        subset = [record for record in rollouts if (record.get("decision") or {}).get("action") == key]
+        action_labels, action_scores = extract_binary_action_targets(subset)
+        per_action[key] = {
+            "auroc": binary_auroc(action_labels, action_scores),
+            "ece": expected_calibration_error(action_labels, action_scores),
+            "brier": brier_score(action_labels, action_scores),
+            **summarize_risk_coverage(action_labels, action_scores),
+            "num_samples": len(action_labels),
+        }
     return {
-        "auroc": None,
-        "ece": None,
-        "brier": None,
-        "note": "Phase-one placeholder. Confidence-aware calibration metrics can be added once confidence scores are logged.",
-        "num_samples": len(rollouts),
+        "overall_auroc": binary_auroc(labels, scores),
+        "overall_ece": expected_calibration_error(labels, scores),
+        "overall_brier": brier_score(labels, scores),
+        "num_samples": len(labels),
+        "per_dataset": per_dataset,
+        "per_action": per_action,
+        **summarize_risk_coverage(labels, scores),
     }
 
 

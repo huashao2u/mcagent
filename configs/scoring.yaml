@@ -1,0 +1,14 @@
+scoring:
+  lambda_search: 0.1
+  lambda_calc: 0.05
+  lambda_clar: 0.1
+  answer_correct: 1.0
+  answer_wrong: -1.0
+  search_helpful: 0.6
+  search_unhelpful: -0.1
+  calculate_helpful: 0.8
+  calculate_unhelpful: -0.1
+  clarify_helpful: 0.5
+  clarify_unhelpful: -0.1
+  refuse_justified: 0.4
+  refuse_unjustified: -0.6

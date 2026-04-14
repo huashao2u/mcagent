@@ -8,7 +8,8 @@ from src.scoring.action_oracle import choose_oracle_action
 def load_utility_config(config: dict[str, Any]) -> dict[str, float]:
     scoring = config["scoring"]
     return {
-        "lambda_tool": float(scoring["lambda_tool"]),
+        "lambda_search": float(scoring["lambda_search"]),
+        "lambda_calc": float(scoring["lambda_calc"]),
         "lambda_clar": float(scoring["lambda_clar"]),
         "answer_correct": float(scoring["answer_correct"]),
         "answer_wrong": float(scoring["answer_wrong"]),
@@ -16,6 +17,8 @@ def load_utility_config(config: dict[str, Any]) -> dict[str, float]:
         "refuse_unjustified": float(scoring["refuse_unjustified"]),
         "search_helpful": float(scoring["search_helpful"]),
         "search_unhelpful": float(scoring["search_unhelpful"]),
+        "calculate_helpful": float(scoring["calculate_helpful"]),
+        "calculate_unhelpful": float(scoring["calculate_unhelpful"]),
         "clarify_helpful": float(scoring["clarify_helpful"]),
         "clarify_unhelpful": float(scoring["clarify_unhelpful"]),
     }
@@ -34,15 +37,19 @@ def score_action(
         if correctness is None:
             correctness = oracle_action == "ANSWER"
         return utility_config["answer_correct"] if correctness else utility_config["answer_wrong"]
-    if normalized in {"SEARCH", "CALCULATE"}:
-        helpful = oracle_action in {"SEARCH", "CALCULATE"} or semantic_tags["TOOL_REQUIRED"]
+    if normalized == "SEARCH":
+        helpful = oracle_action == "SEARCH"
         base = utility_config["search_helpful"] if helpful else utility_config["search_unhelpful"]
-        return base - utility_config["lambda_tool"]
+        return base - utility_config["lambda_search"]
+    if normalized == "CALCULATE":
+        helpful = oracle_action == "CALCULATE"
+        base = utility_config["calculate_helpful"] if helpful else utility_config["calculate_unhelpful"]
+        return base - utility_config["lambda_calc"]
     if normalized == "CLARIFY":
-        helpful = oracle_action == "CLARIFY" or semantic_tags["MISSING_INFO"]
+        helpful = oracle_action == "CLARIFY"
         base = utility_config["clarify_helpful"] if helpful else utility_config["clarify_unhelpful"]
         return base - utility_config["lambda_clar"]
-    justified = oracle_action == "REFUSE" or semantic_tags["JUSTIFIED_REFUSE"]
+    justified = oracle_action == "REFUSE"
     return utility_config["refuse_justified"] if justified else utility_config["refuse_unjustified"]
 
 

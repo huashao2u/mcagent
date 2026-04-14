@@ -42,7 +42,9 @@ def _load_samples(config: dict[str, Any], datasets: list[str], limit_per_dataset
 
 
 def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float], token_threshold: int) -> dict[str, Any]:
-    prompt_text = build_prompt_text(sample, enable_tool_schema=True)
+    semantic_tags = build_semantic_tags(sample)
+    state_tags = active_semantic_tags(sample)
+    prompt_text = build_prompt_text(sample, enable_tool_schema=True, state_tags=state_tags)
     policy_output = policy.generate_decision(sample, prompt_text)
     decision = policy_output.decision
     env = SandboxEnv(sample)
@@ -62,11 +64,16 @@ def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float],
             followup = policy.finalize_after_tool(sample, decision, tool_observation)
             final_answer = followup["final_answer"]
             final_status = followup["final_status"]
-    semantic_tags = build_semantic_tags(sample)
     correctness = is_answer_correct(sample.to_dict(), final_answer)
     oracle_action = choose_oracle_action(sample, semantic_tags=semantic_tags)
     candidate_utilities = estimate_candidate_utilities(sample, semantic_tags, utility_config, answer_correctness=correctness)
     actual_utility = score_action(decision["action"], sample, semantic_tags, utility_config, correctness=correctness)
+    sorted_candidates = sorted(candidate_utilities.values(), reverse=True)
+    best_score = sorted_candidates[0] if sorted_candidates else 0.0
+    second_score = sorted_candidates[1] if len(sorted_candidates) > 1 else best_score
+    score_denominator = max(abs(best_score), abs(second_score), 1.0)
+    action_confidence = max(0.0, min(1.0, 0.5 + ((best_score - second_score) / (2 * score_denominator))))
+    verbal_confidence = round(action_confidence, 4)
     process_features = extract_process_features(
         reason=policy_output.reason,
         raw_text=policy_output.raw_text,
@@ -88,10 +95,18 @@ def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float],
         "final_status": final_status,
         "correctness": correctness,
         "oracle_action": oracle_action,
-        "semantic_tags": active_semantic_tags(sample),
+        "semantic_tags": state_tags,
+        "state_tags": state_tags,
         "process_features": process_features,
         "candidate_utilities": candidate_utilities,
         "actual_utility": actual_utility,
+        "verbal_confidence": verbal_confidence,
+        "action_confidence": action_confidence,
+        "score_answer": candidate_utilities.get("ANSWER"),
+        "score_search": candidate_utilities.get("SEARCH"),
+        "score_calculate": candidate_utilities.get("CALCULATE"),
+        "score_clarify": candidate_utilities.get("CLARIFY"),
+        "score_refuse": candidate_utilities.get("REFUSE"),
         "raw_text": policy_output.raw_text,
     }
 

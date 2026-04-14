@@ -14,6 +14,25 @@ from src.utils.config import load_config
 from src.utils.io import read_jsonl, write_jsonl
 
 
+def _build_shared_prefix_prompt(prompt: str, reason_prefix: str) -> str:
+    return (
+        prompt
+        + "\nResponse JSON prefix:\n"
+        + json.dumps({"reason": reason_prefix}, ensure_ascii=False)[:-1]
+        + ', "decision": {"action": "'
+    )
+
+
+def _build_action_completion(action: str, utility: float) -> str:
+    payload = {
+        "action": action,
+        "action_input": {},
+        "brief_rationale": f"Utility={utility:.2f}",
+    }
+    json_text = json.dumps(payload, ensure_ascii=False)
+    return json_text[len('{"action": "') :] + "}"
+
+
 def build_pairs(rollouts: list[dict[str, Any]], min_gap: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     pairs: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
@@ -33,35 +52,20 @@ def build_pairs(rollouts: list[dict[str, Any]], min_gap: float) -> tuple[list[di
                 }
             )
             continue
-        prompt = record["prompt"]
+        reason_prefix = "Assess the current state and choose the next action."
+        prompt = _build_shared_prefix_prompt(record["prompt"], reason_prefix)
         pairs.append(
             {
                 "id": record["id"],
                 "dataset": record["dataset"],
                 "prompt": prompt,
-                "chosen": json.dumps(
-                    {
-                        "decision": {
-                            "action": chosen_action,
-                            "action_input": {},
-                            "brief_rationale": f"Utility={chosen_utility:.2f}",
-                        }
-                    },
-                    ensure_ascii=False,
-                ),
-                "rejected": json.dumps(
-                    {
-                        "decision": {
-                            "action": rejected_action,
-                            "action_input": {},
-                            "brief_rationale": f"Utility={rejected_utility:.2f}",
-                        }
-                    },
-                    ensure_ascii=False,
-                ),
+                "chosen": _build_action_completion(chosen_action, chosen_utility),
+                "rejected": _build_action_completion(rejected_action, rejected_utility),
                 "chosen_action": chosen_action,
                 "rejected_action": rejected_action,
                 "utility_gap": chosen_utility - rejected_utility,
+                "state_tags": record.get("state_tags", []),
+                "reason_prefix": reason_prefix,
             }
         )
     return pairs, diagnostics
@@ -85,7 +89,12 @@ def build_oracle_pairs(samples, utility_config: dict[str, float], min_gap: float
         if chosen_action == rejected_action or chosen_utility - rejected_utility < min_gap:
             diagnostics.append({"id": sample.id, "reason": "utility_gap_too_small", "ranked_actions": ranked})
             continue
-        prompt = build_prompt_text(sample, enable_tool_schema=True)
+        state_tags = [name for name, enabled in semantic_tags.items() if enabled]
+        reason_prefix = "Assess the current state and choose the next action."
+        prompt = _build_shared_prefix_prompt(
+            build_prompt_text(sample, enable_tool_schema=True, state_tags=state_tags, reason_prefix=reason_prefix),
+            reason_prefix,
+        )
         pairs.append(
             {
                 "id": sample.id,
@@ -93,31 +102,13 @@ def build_oracle_pairs(samples, utility_config: dict[str, float], min_gap: float
                 "task_type": sample.task_type,
                 "oracle_action": oracle_action,
                 "prompt": prompt,
-                "chosen": json.dumps(
-                    {
-                        "reason": f"The best calibrated action is {chosen_action}.",
-                        "decision": {
-                            "action": chosen_action,
-                            "action_input": {},
-                            "brief_rationale": f"Utility={chosen_utility:.2f}",
-                        },
-                    },
-                    ensure_ascii=False,
-                ),
-                "rejected": json.dumps(
-                    {
-                        "reason": f"The worse action is {rejected_action}.",
-                        "decision": {
-                            "action": rejected_action,
-                            "action_input": {},
-                            "brief_rationale": f"Utility={rejected_utility:.2f}",
-                        },
-                    },
-                    ensure_ascii=False,
-                ),
+                "chosen": _build_action_completion(chosen_action, chosen_utility),
+                "rejected": _build_action_completion(rejected_action, rejected_utility),
                 "chosen_action": chosen_action,
                 "rejected_action": rejected_action,
                 "utility_gap": chosen_utility - rejected_utility,
+                "state_tags": state_tags,
+                "reason_prefix": reason_prefix,
             }
         )
     return pairs, diagnostics

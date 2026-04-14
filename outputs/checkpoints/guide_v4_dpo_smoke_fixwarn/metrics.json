@@ -1,0 +1,133 @@
+{
+  "trainer": "trl_dpo",
+  "train_pairs": 256,
+  "eval_pairs": 64,
+  "output_dir": "/media/songyl/mcagent/outputs/checkpoints/guide_v4_dpo_smoke_fixwarn",
+  "smoke": true,
+  "train_metrics": {
+    "train_runtime": 425.5975,
+    "train_samples_per_second": 0.301,
+    "train_steps_per_second": 0.005,
+    "total_flos": 507464210448384.0,
+    "train_loss": 0.6931473016738892
+  },
+  "eval_metrics": {
+    "eval_loss": 0.6918587684631348,
+    "eval_runtime": 107.9387,
+    "eval_samples_per_second": 0.593,
+    "eval_steps_per_second": 0.074,
+    "decision_action_accuracy": 0.1875,
+    "num_samples": 32,
+    "per_dataset": {
+      "competition_math": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 5
+      },
+      "freshqa": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 7
+      },
+      "gsm8k": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 9
+      },
+      "in3": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 5
+      },
+      "mintqa": {
+        "decision_action_accuracy": 1.0,
+        "num_samples": 6
+      }
+    },
+    "records": [
+      {
+        "sample_id": "freshqa-7",
+        "dataset": "freshqa",
+        "oracle_action": "REFUSE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      },
+      {
+        "sample_id": "gsm8k-train-1",
+        "dataset": "gsm8k",
+        "oracle_action": "CALCULATE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      },
+      {
+        "sample_id": "mintqa-train-6",
+        "dataset": "mintqa",
+        "oracle_action": "ANSWER",
+        "predicted_action": "ANSWER",
+        "correct": true
+      },
+      {
+        "sample_id": "gsm8k-train-13",
+        "dataset": "gsm8k",
+        "oracle_action": "CALCULATE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      }
+    ]
+  },
+  "decision_metrics": {
+    "decision_action_accuracy": 0.1875,
+    "num_samples": 32,
+    "per_dataset": {
+      "competition_math": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 5
+      },
+      "freshqa": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 7
+      },
+      "gsm8k": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 9
+      },
+      "in3": {
+        "decision_action_accuracy": 0.0,
+        "num_samples": 5
+      },
+      "mintqa": {
+        "decision_action_accuracy": 1.0,
+        "num_samples": 6
+      }
+    },
+    "records": [
+      {
+        "sample_id": "freshqa-7",
+        "dataset": "freshqa",
+        "oracle_action": "REFUSE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      },
+      {
+        "sample_id": "gsm8k-train-1",
+        "dataset": "gsm8k",
+        "oracle_action": "CALCULATE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      },
+      {
+        "sample_id": "mintqa-train-6",
+        "dataset": "mintqa",
+        "oracle_action": "ANSWER",
+        "predicted_action": "ANSWER",
+        "correct": true
+      },
+      {
+        "sample_id": "gsm8k-train-13",
+        "dataset": "gsm8k",
+        "oracle_action": "CALCULATE",
+        "predicted_action": "ANSWER",
+        "correct": false
+      }
+    ]
+  },
+  "curve_path": "/media/songyl/mcagent/outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/training_curve.json",
+  "final_model_dir": null,
+  "final_model_note": "Skipped final_model export under FSDP; use checkpoint artifacts for adapter weights."
+}

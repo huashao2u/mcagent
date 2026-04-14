@@ -65,14 +65,24 @@ rollout:
   seed: 7
 
 tools:
-  search_top_k: 3
-  clarify_reply_mode: first_option
+  search:
+    backend: mock_retriever
+    top_k: 3
+    enable_online_backend: false
+    cache_path: ./outputs/reports/search_cache.json
+  calculator:
+    mode: safe_python
+  clarify:
+    mode: oracle_once
+  refuse:
+    mode: terminal
 
 features:
   long_reason_token_threshold: 80
 
 scoring:
-  lambda_tool: 0.1
+  lambda_search: 0.1
+  lambda_calc: 0.05
   lambda_clar: 0.1
   answer_correct: 1.0
   answer_wrong: -1.0
@@ -80,6 +90,8 @@ scoring:
   refuse_unjustified: -0.6
   search_helpful: 0.6
   search_unhelpful: -0.1
+  calculate_helpful: 0.8
+  calculate_unhelpful: -0.1
   clarify_helpful: 0.5
   clarify_unhelpful: -0.1
 
@@ -152,3 +164,13 @@ training:
 
 eval:
   non_answer_coverage_warn_threshold: 0.15
+
+teacher:
+  enabled: false
+  provider: openai
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+  temperature: 0.0
+  max_retries: 3
+  batch_size: 8

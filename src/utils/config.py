@@ -23,6 +23,12 @@ def load_config(config_path: str | Path | None = None) -> dict[str, Any]:
     config_file = PROJECT_ROOT / "configs" / "default.yaml" if config_path is None else Path(config_path)
     with config_file.open("r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle) or {}
+    for sibling_name in ("tools.yaml", "scoring.yaml", "teacher.yaml"):
+        sibling = config_file.parent / sibling_name
+        if sibling.exists() and sibling != config_file:
+            with sibling.open("r", encoding="utf-8") as handle:
+                patch = yaml.safe_load(handle) or {}
+            config = merge_config(config, patch)
     config["_config_path"] = str(config_file)
     return config
 

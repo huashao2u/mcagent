@@ -18,3 +18,11 @@ outputs/checkpoints/dpo_8gpu_smoke_v10/checkpoint-*/
 !outputs/checkpoints/dpo_8gpu_smoke_v10/metrics.json
 !outputs/checkpoints/dpo_8gpu_smoke_v10/train_pairs.jsonl
 !outputs/checkpoints/dpo_8gpu_smoke_v10/training_curve.json
+!outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/
+outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/checkpoint-*/
+outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/train_pairs.jsonl
+outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/eval_pairs.jsonl
+!outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/README.md
+!outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/decision_eval_step_2.json
+!outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/metrics.json
+!outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/training_curve.json

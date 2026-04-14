@@ -1,0 +1,9 @@
+teacher:
+  enabled: false
+  provider: openai
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+  temperature: 0.0
+  max_retries: 3
+  batch_size: 8
