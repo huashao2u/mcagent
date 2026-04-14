@@ -18,6 +18,15 @@ from src.utils.config import load_config
 from src.utils.io import write_jsonl
 
 
+def _build_state_prompt(prompt_text: str, reason_prefix: str) -> str:
+    return (
+        prompt_text
+        + "\nResponse JSON prefix:\n"
+        + json.dumps({"reason": reason_prefix}, ensure_ascii=False)[:-1]
+        + ', "decision": {"action": "'
+    )
+
+
 def _resolve_datasets(config: dict[str, Any], requested: str | None) -> list[str]:
     if requested:
         return [name.strip().lower() for name in requested.split(",") if name.strip()]
@@ -41,13 +50,29 @@ def _load_samples(config: dict[str, Any], datasets: list[str], limit_per_dataset
     return samples, skipped
 
 
-def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float], token_threshold: int) -> dict[str, Any]:
+def run_rollout(
+    sample: UnifiedSample,
+    policy,
+    utility_config: dict[str, float],
+    token_threshold: int,
+    config: dict[str, Any],
+    search_phase: str,
+) -> dict[str, Any]:
     semantic_tags = build_semantic_tags(sample)
     state_tags = active_semantic_tags(sample)
     prompt_text = build_prompt_text(sample, enable_tool_schema=True, state_tags=state_tags)
     policy_output = policy.generate_decision(sample, prompt_text)
-    decision = policy_output.decision
-    env = SandboxEnv(sample)
+    decision = dict(policy_output.decision)
+    reason_prefix = policy_output.reason.strip()
+    history_prefix: list[dict[str, Any]] = []
+    state_prompt = _build_state_prompt(prompt_text, reason_prefix)
+    state_snapshot = {
+        "dataset": sample.dataset,
+        "task_type": sample.task_type,
+        "state_tags": state_tags,
+        "history": history_prefix,
+    }
+    env = SandboxEnv(sample, config=config, search_phase=search_phase)
     tool_observation = None
     final_answer = None
     final_status = "pending"
@@ -68,12 +93,20 @@ def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float],
     oracle_action = choose_oracle_action(sample, semantic_tags=semantic_tags)
     candidate_utilities = estimate_candidate_utilities(sample, semantic_tags, utility_config, answer_correctness=correctness)
     actual_utility = score_action(decision["action"], sample, semantic_tags, utility_config, correctness=correctness)
-    sorted_candidates = sorted(candidate_utilities.values(), reverse=True)
-    best_score = sorted_candidates[0] if sorted_candidates else 0.0
-    second_score = sorted_candidates[1] if len(sorted_candidates) > 1 else best_score
-    score_denominator = max(abs(best_score), abs(second_score), 1.0)
-    action_confidence = max(0.0, min(1.0, 0.5 + ((best_score - second_score) / (2 * score_denominator))))
+    confidence_value = decision.get("confidence")
+    try:
+        action_confidence = None if confidence_value is None else max(0.0, min(1.0, float(confidence_value)))
+    except (TypeError, ValueError):
+        action_confidence = None
+    confidence_source = policy_output.confidence_source or "unknown"
+    if action_confidence is None and policy_output.action_probabilities:
+        action_confidence = float(policy_output.action_probabilities.get(decision["action"], 0.5))
+        confidence_source = "action_probability_fallback"
+    if action_confidence is None:
+        action_confidence = 0.5
+        confidence_source = "neutral_fallback"
     verbal_confidence = round(action_confidence, 4)
+    answer_confidence = verbal_confidence if final_answer not in (None, "") else None
     process_features = extract_process_features(
         reason=policy_output.reason,
         raw_text=policy_output.raw_text,
@@ -88,6 +121,10 @@ def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float],
         "gold_answer": sample.gold_answer,
         "metadata": sample.metadata,
         "prompt": prompt_text,
+        "state_prompt": state_prompt,
+        "state_snapshot": state_snapshot,
+        "reason_prefix": reason_prefix,
+        "history_prefix": history_prefix,
         "reason": policy_output.reason,
         "decision": decision,
         "tool_observation": tool_observation,
@@ -102,6 +139,10 @@ def run_rollout(sample: UnifiedSample, policy, utility_config: dict[str, float],
         "actual_utility": actual_utility,
         "verbal_confidence": verbal_confidence,
         "action_confidence": action_confidence,
+        "answer_confidence": answer_confidence,
+        "action_confidence_source": confidence_source,
+        "action_scores": policy_output.action_scores or {},
+        "action_probabilities": policy_output.action_probabilities or {},
         "score_answer": candidate_utilities.get("ANSWER"),
         "score_search": candidate_utilities.get("SEARCH"),
         "score_calculate": candidate_utilities.get("CALCULATE"),
@@ -146,6 +187,8 @@ def main() -> None:
             policy=policy,
             utility_config=utility_config,
             token_threshold=int(config["features"]["long_reason_token_threshold"]),
+            config=config,
+            search_phase=str(config["rollout"].get("search_mode", "train")),
         )
         for sample in samples
     ]
@@ -159,17 +202,28 @@ def main() -> None:
                 "gold_answer": None,
                 "metadata": {"skipped_datasets": skipped},
                 "prompt": "",
+                "state_prompt": "",
+                "state_snapshot": {},
+                "reason_prefix": "",
+                "history_prefix": [],
                 "reason": "Datasets with missing real artifacts were skipped.",
-                "decision": {"action": "REFUSE", "action_input": {}, "brief_rationale": "Meta report"},
+                "decision": {"action": "REFUSE", "confidence": 1.0, "action_input": {}, "brief_rationale": "Meta report"},
                 "tool_observation": None,
                 "final_answer": None,
                 "final_status": "resource_report",
                 "correctness": None,
                 "oracle_action": "REFUSE",
                 "semantic_tags": [],
+                "state_tags": [],
                 "process_features": {},
                 "candidate_utilities": {},
                 "actual_utility": 0.0,
+                "verbal_confidence": 1.0,
+                "action_confidence": 1.0,
+                "answer_confidence": None,
+                "action_confidence_source": "meta_report",
+                "action_scores": {},
+                "action_probabilities": {},
                 "raw_text": "",
             }
         )

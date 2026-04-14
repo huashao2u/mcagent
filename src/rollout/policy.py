@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -34,6 +35,12 @@ class PolicyOutput:
     raw_text: str
     reason: str
     decision: dict[str, Any]
+    action_scores: dict[str, float] | None = None
+    action_probabilities: dict[str, float] | None = None
+    confidence_source: str | None = None
+
+
+ACTION_SPACE = ("ANSWER", "SEARCH", "CALCULATE", "CLARIFY", "REFUSE")
 
 
 class HeuristicPolicy:
@@ -44,20 +51,31 @@ class HeuristicPolicy:
         tags = build_semantic_tags(sample)
         oracle_action = choose_oracle_action(sample, semantic_tags=tags)
         action = oracle_action
-        if _deterministic_ratio(sample.id) < self.exploration_rate:
+        explored = _deterministic_ratio(sample.id) < self.exploration_rate
+        if explored:
             if oracle_action == "ANSWER":
                 action = "SEARCH" if sample.task_type == "factual_boundary" else "CALCULATE"
             elif oracle_action == "CALCULATE":
                 action = "ANSWER"
             elif oracle_action in {"SEARCH", "REFUSE", "CLARIFY"}:
                 action = "ANSWER"
+        action_probabilities = self._build_action_probabilities(action, oracle_action, explored)
+        action_scores = {name: round(math.log(max(prob, 1e-8)), 6) for name, prob in action_probabilities.items()}
         decision = {
             "action": action,
+            "confidence": round(action_probabilities.get(action, 0.5), 4),
             "action_input": self._build_action_input(action, sample),
             "brief_rationale": self._build_rationale(action, sample, tags),
         }
         payload = {"reason": self._build_reason(sample, action, tags), "decision": decision}
-        return PolicyOutput(raw_text=json.dumps(payload, ensure_ascii=False, indent=2), reason=payload["reason"], decision=decision)
+        return PolicyOutput(
+            raw_text=json.dumps(payload, ensure_ascii=False, indent=2),
+            reason=payload["reason"],
+            decision=decision,
+            action_scores=action_scores,
+            action_probabilities=action_probabilities,
+            confidence_source="heuristic_explicit_confidence",
+        )
 
     def finalize_after_tool(self, sample, decision: dict[str, Any], observation: dict[str, Any]) -> dict[str, str]:
         action = decision["action"]
@@ -118,13 +136,27 @@ class HeuristicPolicy:
             return {"question": sample.metadata.get("gold_clarify_question") or "Could you clarify your preference?"}
         return {"reason": "The premise appears false or cannot be verified."}
 
+    def _build_action_probabilities(self, chosen_action: str, oracle_action: str, explored: bool) -> dict[str, float]:
+        chosen_prob = 0.88 if not explored and chosen_action == oracle_action else 0.62
+        runner_up = 0.07 if not explored else 0.18
+        remaining = max(1.0 - chosen_prob - runner_up, 0.0)
+        alternatives = [action for action in ACTION_SPACE if action != chosen_action]
+        probs = {action: remaining / max(len(alternatives) - 1, 1) for action in alternatives}
+        if alternatives:
+            probs[alternatives[0]] = runner_up
+        probs[chosen_action] = chosen_prob
+        total = sum(probs.values()) or 1.0
+        return {action: round(value / total, 6) for action, value in probs.items()}
+
 
 class HFLocalPolicy:
     def __init__(self, model_path: str, max_new_tokens: int = 256):
+        import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True, torch_dtype="auto", device_map="auto")
+        self.torch = torch
         self.max_new_tokens = max_new_tokens
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -143,14 +175,47 @@ class HFLocalPolicy:
         }
 
     def generate_decision(self, sample, prompt_text: str) -> PolicyOutput:
+        action_scores, action_probabilities = self._score_action_options(prompt_text)
         inputs = self.tokenizer(prompt_text, return_tensors="pt").to(self.model.device)
         output = self.model.generate(**inputs, max_new_tokens=self.max_new_tokens)
         decoded = self.tokenizer.decode(output[0], skip_special_tokens=True)
         parsed = parse_decision_output(decoded)
-        return PolicyOutput(raw_text=decoded, reason=parsed["reason"], decision=parsed["decision"])
+        decision = parsed["decision"]
+        confidence_source = "decision_confidence_output"
+        if decision.get("confidence") is None:
+            decision["confidence"] = round(action_probabilities.get(decision["action"], 0.5), 4)
+            confidence_source = "action_token_probability"
+        return PolicyOutput(
+            raw_text=decoded,
+            reason=parsed["reason"],
+            decision=decision,
+            action_scores=action_scores,
+            action_probabilities=action_probabilities,
+            confidence_source=confidence_source,
+        )
 
     def finalize_after_tool(self, sample, decision: dict[str, Any], observation: dict[str, Any]) -> dict[str, str]:
         return {"final_answer": json.dumps(observation, ensure_ascii=False), "final_status": f"completed_after_{decision['action'].lower()}"}
+
+    def _score_action_options(self, prompt_text: str) -> tuple[dict[str, float], dict[str, float]]:
+        diagnostic_prompt = prompt_text + '\nDiagnostic action classifier.\nAction: '
+        inputs = self.tokenizer(diagnostic_prompt, return_tensors="pt").to(self.model.device)
+        with self.torch.no_grad():
+            outputs = self.model(**inputs)
+            logits = outputs.logits[:, -1, :]
+        token_ids = {}
+        for action in ACTION_SPACE:
+            encoded = self.tokenizer.encode(action, add_special_tokens=False)
+            token_ids[action] = encoded[0] if encoded else None
+        selected_actions = [action for action, token_id in token_ids.items() if token_id is not None]
+        selected_token_ids = [token_ids[action] for action in selected_actions]
+        selected_logits = logits[0, selected_token_ids]
+        probabilities = self.torch.softmax(selected_logits, dim=-1).detach().cpu().tolist()
+        action_scores = {
+            action: float(selected_logits[index].detach().cpu().item()) for index, action in enumerate(selected_actions)
+        }
+        action_probabilities = {action: float(probabilities[index]) for index, action in enumerate(selected_actions)}
+        return action_scores, action_probabilities
 
 
 def build_policy(backend: str, model_path: str, exploration_rate: float, max_new_tokens: int):

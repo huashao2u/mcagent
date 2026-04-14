@@ -18,14 +18,26 @@ ONLINE_BACKENDS = {
 }
 
 
-def build_search_backend(search_config: dict[str, Any] | None = None):
-    cfg = search_config or {}
-    backend_name = str(cfg.get("backend", "mock_retriever"))
+def _resolve_search_config(runtime_config: dict[str, Any] | None) -> dict[str, Any]:
+    if runtime_config is None:
+        return {}
+    if "tools" in runtime_config:
+        return runtime_config.get("tools", {}).get("search", {})
+    return runtime_config
+
+
+def build_search_backend(runtime_config: dict[str, Any] | None = None, *, phase: str = "train"):
+    cfg = _resolve_search_config(runtime_config)
+    backend_name = str(
+        cfg.get("train_backend" if phase == "train" else "eval_backend")
+        or cfg.get("backend", "mock_retriever")
+    )
     top_k = int(cfg.get("top_k", 3))
     if backend_name == "mock_retriever":
-        return MockRetriever(top_k=top_k)
+        return MockRetriever(top_k=top_k, phase=phase)
     if backend_name == "local_retriever":
-        return LocalRetriever(top_k=top_k)
+        root_config = runtime_config if runtime_config and "tools" in runtime_config else {"tools": {"search": cfg}}
+        return LocalRetriever(config=root_config, top_k=top_k, phase=phase)
     if backend_name in ONLINE_BACKENDS:
         if not bool(cfg.get("enable_online_backend", False)):
             raise RuntimeError(f"Online backend `{backend_name}` is disabled by config.")

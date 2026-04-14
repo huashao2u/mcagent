@@ -52,8 +52,8 @@ def build_pairs(rollouts: list[dict[str, Any]], min_gap: float) -> tuple[list[di
                 }
             )
             continue
-        reason_prefix = "Assess the current state and choose the next action."
-        prompt = _build_shared_prefix_prompt(record["prompt"], reason_prefix)
+        reason_prefix = record.get("reason_prefix") or "Assess the current state and choose the next action."
+        prompt = record.get("state_prompt") or _build_shared_prefix_prompt(record["prompt"], reason_prefix)
         pairs.append(
             {
                 "id": record["id"],
@@ -66,6 +66,7 @@ def build_pairs(rollouts: list[dict[str, Any]], min_gap: float) -> tuple[list[di
                 "utility_gap": chosen_utility - rejected_utility,
                 "state_tags": record.get("state_tags", []),
                 "reason_prefix": reason_prefix,
+                "pair_source": "rollout_pairs",
             }
         )
     return pairs, diagnostics
@@ -109,6 +110,7 @@ def build_oracle_pairs(samples, utility_config: dict[str, float], min_gap: float
                 "utility_gap": chosen_utility - rejected_utility,
                 "state_tags": state_tags,
                 "reason_prefix": reason_prefix,
+                "pair_source": "oracle_pairs",
             }
         )
     return pairs, diagnostics

@@ -1,0 +1,155 @@
+{
+  "headline_metric": "decision_auroc",
+  "overall_auroc": 1.0,
+  "overall_ece": 0.20333333333333325,
+  "overall_brier": 0.07606666666666669,
+  "num_samples": 6,
+  "per_dataset": {
+    "freshqa": {
+      "auroc": 1.0,
+      "ece": 0.37,
+      "brier": 0.19940000000000002,
+      "best_coverage_at_90_precision": 0.5,
+      "utility_coverage": 0.5,
+      "num_samples": 2
+    },
+    "gsm8k": {
+      "auroc": null,
+      "ece": 0.12,
+      "brier": 0.0144,
+      "best_coverage_at_90_precision": 0.5,
+      "utility_coverage": 1.0,
+      "num_samples": 2
+    },
+    "mintqa": {
+      "auroc": null,
+      "ece": 0.12,
+      "brier": 0.0144,
+      "best_coverage_at_90_precision": 0.5,
+      "utility_coverage": 1.0,
+      "num_samples": 2
+    }
+  },
+  "per_action": {
+    "ANSWER": {
+      "auroc": 1.0,
+      "ece": 0.2866666666666666,
+      "brier": 0.13773333333333335,
+      "best_coverage_at_90_precision": 0.3333333333333333,
+      "utility_coverage": 0.6666666666666666,
+      "num_samples": 3
+    },
+    "CALCULATE": {
+      "auroc": null,
+      "ece": 0.12,
+      "brier": 0.0144,
+      "best_coverage_at_90_precision": 0.5,
+      "utility_coverage": 1.0,
+      "num_samples": 2
+    },
+    "REFUSE": {
+      "auroc": null,
+      "ece": 0.12,
+      "brier": 0.0144,
+      "best_coverage_at_90_precision": 1.0,
+      "utility_coverage": 1.0,
+      "num_samples": 1
+    }
+  },
+  "decision_calibration": {
+    "overall_auroc": 1.0,
+    "overall_ece": 0.20333333333333325,
+    "overall_brier": 0.07606666666666669,
+    "num_samples": 6,
+    "best_coverage_at_90_precision": 0.16666666666666666,
+    "utility_coverage": 0.8333333333333334,
+    "per_dataset": {
+      "freshqa": {
+        "auroc": 1.0,
+        "ece": 0.37,
+        "brier": 0.19940000000000002,
+        "best_coverage_at_90_precision": 0.5,
+        "utility_coverage": 0.5,
+        "num_samples": 2
+      },
+      "gsm8k": {
+        "auroc": null,
+        "ece": 0.12,
+        "brier": 0.0144,
+        "best_coverage_at_90_precision": 0.5,
+        "utility_coverage": 1.0,
+        "num_samples": 2
+      },
+      "mintqa": {
+        "auroc": null,
+        "ece": 0.12,
+        "brier": 0.0144,
+        "best_coverage_at_90_precision": 0.5,
+        "utility_coverage": 1.0,
+        "num_samples": 2
+      }
+    },
+    "per_action": {
+      "ANSWER": {
+        "auroc": 1.0,
+        "ece": 0.2866666666666666,
+        "brier": 0.13773333333333335,
+        "best_coverage_at_90_precision": 0.3333333333333333,
+        "utility_coverage": 0.6666666666666666,
+        "num_samples": 3
+      },
+      "CALCULATE": {
+        "auroc": null,
+        "ece": 0.12,
+        "brier": 0.0144,
+        "best_coverage_at_90_precision": 0.5,
+        "utility_coverage": 1.0,
+        "num_samples": 2
+      },
+      "REFUSE": {
+        "auroc": null,
+        "ece": 0.12,
+        "brier": 0.0144,
+        "best_coverage_at_90_precision": 1.0,
+        "utility_coverage": 1.0,
+        "num_samples": 1
+      }
+    }
+  },
+  "answer_calibration": {
+    "overall_auroc": 0.2222222222222222,
+    "overall_ece": 0.4633333333333334,
+    "overall_brier": 0.41606666666666664,
+    "num_samples": 6,
+    "best_coverage_at_90_precision": null,
+    "utility_coverage": 0.5,
+    "per_dataset": {
+      "freshqa": {
+        "overall_auroc": 0.0,
+        "overall_ece": 0.63,
+        "overall_brier": 0.4594,
+        "num_samples": 2,
+        "best_coverage_at_90_precision": null,
+        "utility_coverage": 0.5
+      },
+      "gsm8k": {
+        "overall_auroc": null,
+        "overall_ece": 0.88,
+        "overall_brier": 0.7744,
+        "num_samples": 2,
+        "best_coverage_at_90_precision": null,
+        "utility_coverage": 0.0
+      },
+      "mintqa": {
+        "overall_auroc": null,
+        "overall_ece": 0.12,
+        "overall_brier": 0.0144,
+        "num_samples": 2,
+        "best_coverage_at_90_precision": 0.5,
+        "utility_coverage": 1.0
+      }
+    }
+  },
+  "best_coverage_at_90_precision": 0.16666666666666666,
+  "utility_coverage": 0.8333333333333334
+}

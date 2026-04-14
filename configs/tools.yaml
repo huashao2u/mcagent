@@ -1,9 +1,16 @@
 tools:
   search:
-    backend: mock_retriever
+    backend: local_retriever
+    train_backend: local_retriever
+    eval_backend: serper
     top_k: 3
     enable_online_backend: false
     cache_path: ./outputs/reports/search_cache.json
+    corpus_path: ./outputs/reports/local_search_corpus.json
+    index_path: ./outputs/reports/local_search_index.json
+    index_split: all
+    max_docs_per_dataset: 400
+    min_score: 0.0
   calculator:
     mode: safe_python
   clarify:

@@ -26,3 +26,15 @@ outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/eval_pairs.jsonl
 !outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/decision_eval_step_2.json
 !outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/metrics.json
 !outputs/checkpoints/guide_v4_dpo_smoke_fixwarn/training_curve.json
+!outputs/checkpoints/v5_natural_dpo_smoke/
+outputs/checkpoints/v5_natural_dpo_smoke/checkpoint-*/
+outputs/checkpoints/v5_natural_dpo_smoke/train_pairs.jsonl
+outputs/checkpoints/v5_natural_dpo_smoke/eval_pairs.jsonl
+outputs/checkpoints/v5_natural_dpo_smoke/train_pairs_rollouts.jsonl
+outputs/checkpoints/v5_natural_dpo_smoke/eval_pairs_rollouts.jsonl
+outputs/checkpoints/v5_natural_dpo_smoke/train_pairs_diagnostics.jsonl
+outputs/checkpoints/v5_natural_dpo_smoke/eval_pairs_diagnostics.jsonl
+!outputs/checkpoints/v5_natural_dpo_smoke/README.md
+!outputs/checkpoints/v5_natural_dpo_smoke/decision_eval_step_2.json
+!outputs/checkpoints/v5_natural_dpo_smoke/metrics.json
+!outputs/checkpoints/v5_natural_dpo_smoke/training_curve.json

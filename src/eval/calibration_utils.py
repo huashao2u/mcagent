@@ -76,3 +76,16 @@ def extract_binary_action_targets(records: list[dict[str, Any]]) -> tuple[list[i
         labels.append(int(action == oracle))
         scores.append(float(score))
     return labels, scores
+
+
+def extract_binary_answer_targets(records: list[dict[str, Any]]) -> tuple[list[int], list[float]]:
+    labels: list[int] = []
+    scores: list[float] = []
+    for record in records:
+        score = record.get("answer_confidence")
+        correctness = record.get("correctness")
+        if score is None or correctness is None:
+            continue
+        labels.append(int(bool(correctness)))
+        scores.append(float(score))
+    return labels, scores

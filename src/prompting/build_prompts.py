@@ -33,6 +33,7 @@ def build_system_prompt(enable_tool_schema: bool = True) -> str:
             '  "reason": "brief reasoning",',
             '  "decision": {',
             '    "action": "ANSWER|SEARCH|CALCULATE|CLARIFY|REFUSE",',
+            '    "confidence": 0.0,',
             '    "action_input": {},',
             '    "brief_rationale": "why this action is appropriate"',
             "  }",
@@ -154,6 +155,7 @@ def parse_decision_output(raw_text: str) -> dict[str, Any]:
             "reason": raw_text.strip(),
             "decision": {
                 "action": action,
+                "confidence": None,
                 "action_input": {},
                 "brief_rationale": "Fallback parser selected the most likely action keyword.",
             },
@@ -176,10 +178,16 @@ def parse_decision_output(raw_text: str) -> dict[str, Any]:
         action_input = {"question": ""}
     if action == "REFUSE" and "reason" not in action_input:
         action_input = {"reason": ""}
+    confidence = decision.get("confidence")
+    try:
+        confidence = None if confidence is None else max(0.0, min(1.0, float(confidence)))
+    except (TypeError, ValueError):
+        confidence = None
     return {
         "reason": str(parsed.get("reason", "")).strip(),
         "decision": {
             "action": action,
+            "confidence": confidence,
             "action_input": action_input,
             "brief_rationale": str(decision.get("brief_rationale", "")).strip(),
         },

@@ -6,11 +6,14 @@ paths:
   dataset_root: ./dataset
   model_root: ./models/qwen/Qwen2.5-7B-Instruct
   rollout_output: ./outputs/rollouts/phase_a_rollouts.jsonl
+  search_corpus_output: ./outputs/reports/local_search_corpus.json
+  search_index_output: ./outputs/reports/local_search_index.json
   decision_eval_output: ./outputs/reports/decision_eval.json
   train_dataset_cache: ./outputs/pairs/train_mixture_pairs.jsonl
   eval_dataset_cache: ./outputs/pairs/eval_mixture_pairs.jsonl
   pair_output: ./outputs/pairs/phase_a_pairs.jsonl
   diagnostics_output: ./outputs/pairs/phase_a_diagnostics.jsonl
+  teacher_label_output: ./outputs/reports/teacher_labels.jsonl
   action_eval_output: ./outputs/reports/action_metrics.json
   answer_eval_output: ./outputs/reports/answer_metrics.json
   calibration_eval_output: ./outputs/reports/calibration_metrics.json
@@ -63,13 +66,21 @@ rollout:
   exploration_rate: 0.2
   max_new_tokens: 256
   seed: 7
+  search_mode: train
 
 tools:
   search:
-    backend: mock_retriever
+    backend: local_retriever
+    train_backend: local_retriever
+    eval_backend: serper
     top_k: 3
     enable_online_backend: false
     cache_path: ./outputs/reports/search_cache.json
+    corpus_path: ./outputs/reports/local_search_corpus.json
+    index_path: ./outputs/reports/local_search_index.json
+    index_split: all
+    max_docs_per_dataset: 400
+    min_score: 0.0
   calculator:
     mode: safe_python
   clarify:
@@ -142,8 +153,8 @@ training:
     log_model: false
     mode: online
   curriculum:
-    train_builder: oracle_pairs
-    eval_builder: oracle_pairs
+    train_builder: natural_branch_pairs
+    eval_builder: natural_branch_pairs
   distributed:
     use_torchrun: true
     nproc_per_node: 8

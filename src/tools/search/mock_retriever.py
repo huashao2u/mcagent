@@ -6,8 +6,9 @@ from typing import Any
 class MockRetriever:
     name = "mock_retriever"
 
-    def __init__(self, top_k: int = 3):
+    def __init__(self, top_k: int = 3, phase: str = "train"):
         self.top_k = top_k
+        self.phase = phase
 
     def run(self, action_input: dict[str, Any], sample, history: list[dict[str, Any]]) -> tuple[dict[str, Any], bool, dict[str, Any]]:
         query = action_input.get("query") or sample.question
@@ -24,6 +25,8 @@ class MockRetriever:
         observation = {
             "query": query,
             "results": evidence[: self.top_k],
-            "metadata": {"tool": self.name, "mode": "train_proxy"},
+            "doc_ids": [f"mock:{index}" for index in range(min(len(evidence), self.top_k))],
+            "scores": [1.0 for _ in range(min(len(evidence), self.top_k))],
+            "metadata": {"tool": self.name, "mode": "smoke_proxy", "phase": self.phase},
         }
         return observation, False, {"helpful": bool(evidence)}

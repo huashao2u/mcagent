@@ -14,6 +14,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
 
 from src.data.loaders import load_mixed_datasets
 from src.eval.decision_accuracy import evaluate_decision_accuracy
+from src.pairs.build_natural_branch_pairs import build_natural_branch_pairs_from_samples
 from src.pairs.build_pairs import build_oracle_pairs
 from src.scoring.local_utility import load_utility_config
 from src.utils.config import load_config
@@ -81,6 +82,8 @@ def _setup_wandb(config: dict[str, Any]) -> None:
 
 def _build_pair_dataset(config: dict[str, Any], split_name: str, output_path: Path) -> list[dict[str, Any]]:
     mix_cfg = config["data"][f"{split_name}_mix"]
+    curriculum_cfg = config["training"].get("curriculum", {})
+    builder_name = str(curriculum_cfg.get(f"{split_name}_builder", curriculum_cfg.get("train_builder", "oracle_pairs")))
     print(f"[mcagent] building {split_name} mixed samples...")
     samples = load_mixed_datasets(
         dataset_limits=mix_cfg["per_dataset"],
@@ -92,14 +95,23 @@ def _build_pair_dataset(config: dict[str, Any], split_name: str, output_path: Pa
     if len(samples) > total_limit:
         samples = samples[:total_limit]
     print(f"[mcagent] {split_name} samples loaded: {len(samples)}")
-    utility_config = load_utility_config(config)
-    print(f"[mcagent] building {split_name} oracle pairs...")
-    pairs, diagnostics = build_oracle_pairs(samples, utility_config=utility_config, min_gap=float(config["pairs"]["min_utility_gap"]))
+    if builder_name == "natural_branch_pairs":
+        print(f"[mcagent] building {split_name} natural-branch pairs...")
+        pairs, diagnostics, rollouts = build_natural_branch_pairs_from_samples(
+            samples,
+            config=config,
+            min_gap=float(config["pairs"]["min_utility_gap"]),
+        )
+        write_jsonl(output_path.with_name(output_path.stem + "_rollouts.jsonl"), rollouts)
+    else:
+        utility_config = load_utility_config(config)
+        print(f"[mcagent] building {split_name} oracle pairs...")
+        pairs, diagnostics = build_oracle_pairs(samples, utility_config=utility_config, min_gap=float(config["pairs"]["min_utility_gap"]))
     write_jsonl(output_path, pairs)
     if diagnostics:
         diag_path = output_path.with_name(output_path.stem + "_diagnostics.jsonl")
         write_jsonl(diag_path, diagnostics)
-    print(f"[mcagent] {split_name} pairs built: {len(pairs)}")
+    print(f"[mcagent] {split_name} pairs built with `{builder_name}`: {len(pairs)}")
     return pairs
 
 
